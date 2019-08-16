@@ -1,0 +1,11 @@
+[base]
+; usually podcasts are sent in 16kb/s audiostreams
+size_to_seconds_factor=16000
+
+; full directory path where playlists should be saved to
+playlist_base_path=/
+
+[feeds]
+; example:
+; generated_playlist_file = full qualified url
+; podcast.m3u = https://www.example.com/feed/podcast.rss
