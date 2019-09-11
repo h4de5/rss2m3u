@@ -1,11 +1,8 @@
 <?php
 
-// default path to config file
-$config_file = "../feeds.conf";
-$config = [];
-
 function init() {
-  global $config_file;
+  // default path to config file
+  $config_file = "../feeds.conf";
 
   if(!file_exists($config_file)) {
     // throw new ErrorException("Please make sure that a feeds.conf is available in ". realpath(".."));
@@ -19,7 +16,7 @@ function init() {
   }
 
   if(empty($config["feeds"])) {
-    trigger_error("There are not podcast urls defined in the [feeds] section of the given config file.", E_USER_ERROR);
+    trigger_error("There are no podcast urls defined in the [feeds] section of the given config file.", E_USER_ERROR);
   }
 
   if(!is_writable($config['base']['playlist_base_path'])) {
@@ -36,55 +33,89 @@ function init() {
   return $config;
 }
 
-function rss2m3u($url, $kbytes = 16000) {
+function rss2m3u($url, $kbytes = 16000, $feedconf = array()) {
   global $config;
 
-  $rss = simplexml_load_file($url);
-  $m3u_text = '#EXTM3U'. PHP_EOL;
-  $artist = trim($rss->channel->title);
+  try {
+    $rss = simplexml_load_file($url);
+    $m3u_text = '#EXTM3U'. PHP_EOL;
+    $artist = trim($rss->channel->title);
 
-  foreach($rss->channel->item as $item) {
-    // #EXTINF:3403,c't uplink 28.5: Wer braucht noch Digitalkameras?
-    // https://cdnapisec.kaltura.com/p/2238431/sp/0/playManifest/entryId/0_pa2oz6um/format/url/protocol/https/flavorParamId/1608871/c-t-uplink-28-5-Wer-braucht-noch-Digitalkameras.mp3
+    $idx = 0;
+    $top = !empty($feedconf['top']) ? intval($feedconf['top']) : 0;
+    $last = !empty($feedconf['last']) ? intval($feedconf['last']) : 0;
 
-    if(isset($item->enclosure)) {
-      $title = $item->title;
-      $path = $item->enclosure['url'];
-      $length = round($item->enclosure['length']/$kbytes);
-    } else {
-      // <media:content url="http://feedproxy.google.com/~r/rf/KsMp/~5/TbT_XdtNE5k/2019-07-21_Sommerbrief_1.mp3" fileSize="4311143" type="audio/x-mpeg" />
-      $title = $item->title;
-      $path = $item->children('media', true)->content['url'];
-      $length =  round($item->children('media', true)->content['fileSize']/$kbytes);
-    }
-    // if length could not be parsed, check for itunes duration
-    if(empty($length)) {
-      $length =  round($item->children('itunes', true)->duration);
-    }
-    // if no dash is given, prepend podcast title
-    if(strpos($title, '-') === false && stripos($title, $artist) === false) {
-      $title = $artist .' - '. $title;
-    }
+    foreach($rss->channel->item as $item) {
+        // only show top entries
+        if (!empty($top) && $idx >= $top) {
+            continue;
+        }
+        // TODO - only show last entries..
 
-    $m3u_text .= '#EXTINF:'. $length .','. $title .PHP_EOL;
-    $m3u_text .= $path . PHP_EOL;
+        // #EXTINF:3403,c't uplink 28.5: Wer braucht noch Digitalkameras?
+        // https://cdnapisec.kaltura.com/p/2238431/sp/0/playManifest/entryId/0_pa2oz6um/format/url/protocol/https/flavorParamId/1608871/c-t-uplink-28-5-Wer-braucht-noch-Digitalkameras.mp3
+
+        if(isset($item->enclosure)) {
+        $title = $item->title;
+        $path = $item->enclosure['url'];
+        $length = round($item->enclosure['length']/$kbytes);
+        } else {
+        // <media:content url="http://feedproxy.google.com/~r/rf/KsMp/~5/TbT_XdtNE5k/2019-07-21_Sommerbrief_1.mp3" fileSize="4311143" type="audio/x-mpeg" />
+        $title = $item->title;
+        $path = $item->children('media', true)->content['url'];
+        $length =  round($item->children('media', true)->content['fileSize']/$kbytes);
+        }
+        // if length could not be parsed, check for itunes duration
+        if(empty($length)) {
+        $length =  round($item->children('itunes', true)->duration);
+        }
+        // if no dash is given, prepend podcast title
+        if(strpos($title, '-') === false && stripos($title, $artist) === false) {
+        $title = $artist .' - '. $title;
+        }
+
+        // some player do not work with https links
+        if( !empty($feedconf['scheme']) && $feedconf['scheme'] === 'http' ) {
+            $path = str_replace('https://', 'http://', $path);
+        } else if( !empty($feedconf['scheme']) && $feedconf['scheme'] === 'https' ) {
+            $path = str_replace('http://', 'https://', $path);
+        }
+
+        $m3u_text .= '#EXTINF:'. $length .','. $title .PHP_EOL;
+        $m3u_text .= $path . PHP_EOL;
+
+        $idx ++;
+    }
+    return $m3u_text;
   }
-  return $m3u_text;
+  catch(Exception $e) {
+    return '';
+  }
 }
 
-$config = init($config_file);
+$config = init();
 
 header('Content-Type:text/plain');
 
-foreach($config['feeds'] as $filename => $url) {
+foreach($config['feeds'] as $filename => $feed) {
+
+  $url = $feed['url'];
 
   if(file_exists($config['base']['playlist_base_path']. $filename) && !is_writable($config['base']['playlist_base_path']. $filename)) {
     trigger_error("Target playlist file ".realpath($config['base']['playlist_base_path'].$filename)." is not writeable.", E_USER_WARNING);
     continue;
   }
 
+  $khz = 0;
+  if(!empty($feed['url']['khz'])) {
+    $khz = intval($feed['url']['khz']);
+  }
+  if(empty($khz)) {
+    $khz = intval($config['base']['size_to_seconds_factor']);
+  }
+
   // get m3u playlist from url
-  $m3u_text = rss2m3u($url, intval($config['base']['size_to_seconds_factor']));
+  $m3u_text = rss2m3u($url, $khz, $feed);
 
   // output name of playlist file + newest empisode
   echo $config['base']['playlist_base_path'].$filename . PHP_EOL;

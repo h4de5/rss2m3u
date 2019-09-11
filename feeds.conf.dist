@@ -8,4 +8,10 @@ playlist_base_path=/
 [feeds]
 ; example:
 ; generated_playlist_file = full qualified url
-; podcast.m3u = https://www.example.com/feed/podcast.rss
+; podcast.m3u[url] = https://www.example.com/feed/podcast.rss
+; only parse the top 3 entries
+; podcast.m3u[top] = 3
+; only parse the last 3 entries
+; podcast.m3u[last] = 3
+; change khz for this podcast, used as seconds to kbits factor, default 16000
+; podcast.m3u[khz] = 16000
