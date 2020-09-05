@@ -4,6 +4,7 @@ size_to_seconds_factor=16000
 
 ; full directory path where playlists should be saved to
 playlist_base_path=/
+download_base_path=/podcasts/
 
 [feeds]
 ; example:
