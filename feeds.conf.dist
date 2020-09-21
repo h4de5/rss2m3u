@@ -4,11 +4,17 @@ size_to_seconds_factor=16000
 
 ; full directory path where playlists should be saved to
 playlist_base_path=/
-download_base_path=/podcasts/
+; full directory path where downloads should be saved to
+; download_base_path=/podcasts/
+; relative directory path from playlists to downloads
+; download_rel_path=../Podcasts/
+; run command after download completed - runs only when the file is created
+; post_download_cmd=synoindex -a $file
 
 [feeds]
 ; example:
 ; generated_playlist_file = full qualified url
+; filename supports m3u and pls extension/file type
 ; podcast.m3u[url] = https://www.example.com/feed/podcast.rss
 ; only parse the top 3 entries
 ; podcast.m3u[top] = 3
@@ -16,3 +22,5 @@ download_base_path=/podcasts/
 ; podcast.m3u[last] = 3
 ; change khz for this podcast, used as seconds to kbits factor, default 16000
 ; podcast.m3u[khz] = 16000
+; if you want to download the podcast into download_base_path
+; podcast.m3u[download] = 1

@@ -182,6 +182,15 @@ class Rss2Playlist {
 
 						if (!$file_saved) {
 							// trigger_error("Could not download " . $path . " to " . realpath($targetFile), E_USER_ERROR);
+						} else {
+							if (!empty($this->config['base']['post_download_cmd'])) {
+								$cmd = str_replace('$file', escapeshellarg(realpath($targetFile)), $this->config['base']['post_download_cmd']);
+								// echo $cmd . PHP_EOL;
+								$cmd_result = shell_exec($cmd);
+								if (null === $cmd_result) {
+									trigger_error("Could not execute post commmand " . htmlentities($cmd), E_USER_ERROR);
+								}
+							}
 						}
 					} else {
 						// file already there
