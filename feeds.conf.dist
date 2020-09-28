@@ -24,3 +24,6 @@ playlist_base_path=/
 ; podcast.m3u[khz] = 16000
 ; if you want to download the podcast into download_base_path
 ; podcast.m3u[download] = 1
+; make that feed part of name-of-latest.m3u (url = _latest)
+; listing only to newest entries, sortet by pubDate
+; podcast.m3u[_latest] = name-of-latest.m3u

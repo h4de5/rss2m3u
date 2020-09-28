@@ -10,6 +10,11 @@ class Rss2Playlist {
 	protected $config = [];
 
 	/**
+	 * @var array
+	 */
+	protected $latest = [];
+
+	/**
 	 * @param $configFile
 	 */
 	public function __construct($configFile = "../feeds.conf") {
@@ -121,6 +126,7 @@ class Rss2Playlist {
 
 			$idx = 0;
 			$top = !empty($feedconf['top']) ? intval($feedconf['top']) : 0;
+			$pubDate = '';
 			// $last = !empty($feedconf['last']) ? intval($feedconf['last']) : 0;
 
 			foreach ($rss->channel->item as $item) {
@@ -148,6 +154,7 @@ class Rss2Playlist {
 					$title = $artist . ' - ' . $title;
 				}
 
+				$pubDate = strtotime($item->pubDate);
 				$playlistPath = $path;
 
 				$file_saved = false;
@@ -174,6 +181,7 @@ class Rss2Playlist {
 					$targetFile = $targetDir . $web_file;
 
 					if (!file_exists($targetFile)) {
+						set_time_limit(60);
 						// $file_saved = file_put_contents($targetFile, file_get_contents($path));
 						$fp = @fopen($path, 'r');
 						if (false !== $fp) {
@@ -186,8 +194,10 @@ class Rss2Playlist {
 							if (!empty($this->config['base']['post_download_cmd'])) {
 								$cmd = str_replace('$file', escapeshellarg(realpath($targetFile)), $this->config['base']['post_download_cmd']);
 								// echo $cmd . PHP_EOL;
-								$cmd_result = shell_exec($cmd);
-								if (null === $cmd_result) {
+								$output = [];
+								$cmd_result = false;
+								exec($cmd, $output, $cmd_result);
+								if (0 !== $cmd_result) {
 									trigger_error("Could not execute post commmand " . htmlentities($cmd), E_USER_ERROR);
 								}
 							}
@@ -217,12 +227,19 @@ class Rss2Playlist {
 				}
 
 				$idx++;
-				$list[] = [
+				$list[] = $listitem = [
 					'title' => $title,
 					'path' => $playlistPath,
 					'length' => $length,
+					'pubDate' => $pubDate,
 					'idx' => $idx
 				];
+
+				// check for latest settings
+				if (!empty($feedconf['_latest'])) {
+					// echo 'adding title: ' . $title . ' to latest: ' . $feedconf['_latest'] . PHP_EOL;
+					$this->latest[$feedconf['_latest']][] = $listitem;
+				}
 			}
 			return $list;
 		} catch (Exception $e) {
@@ -255,7 +272,19 @@ class Rss2Playlist {
 			}
 
 			// get m3u playlist from url
-			$playlistData = $this->rss2data($feed);
+			if (!empty($feed['url']) && '_latest' !== $feed['url']) {
+				$playlistData = $this->rss2data($feed);
+			} else if (!empty($this->latest[$filename])) {
+				$playlistData = $this->latest[$filename];
+				uasort($playlistData, ['self', 'sortByPubDate']);
+				if (!empty($feed['top']) && intval($feed['top']) > 0) {
+					$playlistData = array_slice($playlistData, 0, intval($feed['top']));
+				}
+			} else {
+				// no url, and no items for latest
+				trigger_error("Playlist url for " . \htmlentities($filename) . " was empty or latest config was invalid.", E_USER_WARNING);
+				continue;
+			}
 
 			if ('m3u' == $feed['type']) {
 				$playlistContent = $this->toM3u($playlistData);
@@ -274,6 +303,15 @@ class Rss2Playlist {
 				continue;
 			}
 		}
+	}
+
+	/**
+	 * sorts by datetime - newsest on top
+	 * @param datetime $a
+	 * @param datetime $b
+	 */
+	protected function sortByPubDate($a, $b) {
+		return ($b['pubDate'] <=> $a['pubDate']);
 	}
 
 	// public function renderResult() {
