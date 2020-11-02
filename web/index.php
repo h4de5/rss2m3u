@@ -49,9 +49,12 @@ class Rss2Playlist {
 		if (!is_writable($config['base']['playlist_base_path'])) {
 			trigger_error("Target directory for playlists " . realpath($config['base']['playlist_base_path']) . " is not writeable.", E_USER_ERROR);
 		}
-		if (!is_writable($config['base']['download_base_path'])) {
+		if (!empty(trim($config['base']['download_base_path'], '/')) && !is_writable($config['base']['download_base_path'])) {
 			trigger_error("Target directory for downloads " . realpath($config['base']['download_base_path']) . " is not writeable.", E_USER_ERROR);
 		}
+		// if (!empty(trim($config['base']['download_rel_path'], '/')) && !is_writable($config['base']['download_rel_path'])) {
+		// 	trigger_error("Target relative directory for downloads " . realpath($config['base']['download_rel_path']) . " is not writeable.", E_USER_ERROR);
+		// }
 
 		if (empty($config['base']['size_to_seconds_factor']) || intval($config['base']['size_to_seconds_factor']) <= 0) {
 			$config['base']['size_to_seconds_factor'] = 16000;
